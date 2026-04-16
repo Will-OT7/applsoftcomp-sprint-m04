@@ -332,26 +332,17 @@ def _(mo):
     - **Orthogonal to the other axis**: the two axes should capture
       different aspects of the data.
 
-    #### Why multiple words per pole — why not just one?
+    /// note | Why multiple words per pole — why not just one?
 
     A single word's embedding is **noisy**. It carries the quirks of how
     that specific word appears in the training data: rare senses,
     collocations, polysemy, branding. If you build an axis from just two
     single words, those quirks *become* the axis.
 
-    Averaging 3–6 words per pole fixes this three ways:
-
-    1. **It cancels idiosyncratic noise.** Per-word wobble averages out;
-       only the direction the pole words *share* survives.
-    2. **It triangulates the concept.** "skyscrapers", "stock exchange",
-       and "corporate headquarters" each lean toward *financial hub* from
-       a slightly different angle. The centroid lies in their intersection,
-       which is a cleaner definition of the concept than any single word.
-    3. **It pushes the poles apart.** A tighter centroid gives a sharper
-       axis direction and better separation in the projected scores.
-
     Rule of thumb: **3–6 words per pole**. Fewer is too noisy; many more
     starts to dilute the concept by pulling in unrelated vocabulary.
+
+    ///
 
     Our two axes for cities:
 
@@ -371,9 +362,7 @@ def _(mo):
     #### Axis 1 — historic/heritage (−) ↔ finance/business hub (+)
 
     Notice that the pole words each evoke the concept from a different
-    angle — literal ("skyscrapers"), institutional ("stock exchange"),
-    and abstract ("global financial hub"). That diversity is the point:
-    the centroid lies in the shared-meaning intersection of all of them.
+    angle. The centroid lies in the shared-meaning intersection of all of them.
     """)
     return
 
@@ -388,6 +377,7 @@ def _(make_axis, model):
         "skyscrapers",
         "business district",
     ]
+
     axis1_neg = [
         "ancient city",
         "historic old town",
@@ -470,12 +460,35 @@ def _(mo):
     - **Tooltips** let you inspect outliers without cluttering the chart
       with permanent labels. For a static deliverable, annotate only the
       most instructive points.
+
+    The dropdown below lets you **recolor the scatter** by a different
+    attribute. Same geometry, different story:
+
+    - `region` — the continent each city sits in (categorical).
+    - `business_activity` — GaWC global-city rating, ordered from
+      *Alpha++* down to *Sufficiency* (ordinal).
+    - `population` — city population on a log scale (quantitative).
+
+    Swapping the color encoding is a cheap way to check whether your
+    semantic axes are picking up something that *also* correlates with
+    a non-semantic attribute you already have in the data.
     """)
     return
 
 
 @app.cell(hide_code=True)
-def _(alt, df_scored):
+def _(mo):
+    color_by = mo.ui.dropdown(
+        options=["region", "business_activity", "population"],
+        value="region",
+        label="Color by: ",
+    )
+    color_by
+    return (color_by,)
+
+
+@app.cell(hide_code=True)
+def _(alt, color_by, df_scored):
     # Okabe–Ito palette, one color per region.
     REGION_COLORS = {
         "Africa":   "#009E73",
@@ -484,6 +497,37 @@ def _(alt, df_scored):
         "Europe":   "#E69F00",
         "Oceania":  "#56B4E9",
     }
+
+    # GaWC rating ordered from "most globally connected" to "least".
+    BUSINESS_ORDER = [
+        "Alpha++", "Alpha+", "Alpha", "Alpha-",
+        "Beta+", "Beta", "Beta-",
+        "Gamma+", "Gamma", "Gamma-",
+        "High Sufficiency", "Sufficiency",
+    ]
+
+    if color_by.value == "region":
+        _color = alt.Color(
+            "region:N",
+            scale=alt.Scale(
+                domain=list(REGION_COLORS.keys()),
+                range=list(REGION_COLORS.values()),
+            ),
+            legend=alt.Legend(title="Region"),
+        )
+    elif color_by.value == "business_activity":
+        _color = alt.Color(
+            "business_activity:O",
+            sort=BUSINESS_ORDER,
+            scale=alt.Scale(domain=BUSINESS_ORDER, scheme="viridis"),
+            legend=alt.Legend(title="GaWC rating"),
+        )
+    else:  # population
+        _color = alt.Color(
+            "population:Q",
+            scale=alt.Scale(scheme="viridis", type="log"),
+            legend=alt.Legend(title="Population (log)"),
+        )
 
     chart = (
         alt.Chart(df_scored)
@@ -501,18 +545,13 @@ def _(alt, df_scored):
                 scale=alt.Scale(zero=False, padding=20),
                 axis=alt.Axis(grid=False),
             ),
-            color=alt.Color(
-                "region:N",
-                scale=alt.Scale(
-                    domain=list(REGION_COLORS.keys()),
-                    range=list(REGION_COLORS.values()),
-                ),
-                legend=alt.Legend(title="Region"),
-            ),
+            color=_color,
             tooltip=[
                 alt.Tooltip("city:N", title="City"),
                 alt.Tooltip("country:N", title="Country"),
                 alt.Tooltip("region:N", title="Region"),
+                alt.Tooltip("business_activity:N", title="GaWC"),
+                alt.Tooltip("population:Q", title="Population", format=","),
                 alt.Tooltip("x:Q", title="business-hub score", format=".3f"),
                 alt.Tooltip("y:Q", title="tropical-warm score", format=".3f"),
             ],
