@@ -346,12 +346,12 @@ def _(mo):
 
     Our two axes for cities:
 
-    - **Horizontal** — *historic/heritage* (−) ↔ *finance/business hub* (+)
-    - **Vertical** — *cold/northern climate* (−) ↔ *tropical/warm climate* (+)
+    - **Horizontal** — *small town / village* (−) ↔ *megacity / metropolis* (+)
+    - **Vertical** — *cold / northern climate* (−) ↔ *tropical / warm climate* (+)
 
     These are conceptually independent: Singapore is both tropical *and* a
-    finance hub; Reykjavik is cold and not a finance hub; Rome is warm-ish
-    but heritage-heavy, not financial.
+    megacity; Reykjavik is cold and small; Asunción is warm-ish but not a
+    global megalopolis.
     """)
     return
 
@@ -359,10 +359,22 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    #### Axis 1 — historic/heritage (−) ↔ finance/business hub (+)
+    #### Axis 1 — small town / village (−) ↔ megacity / metropolis (+)
 
     Notice that the pole words each evoke the concept from a different
     angle. The centroid lies in the shared-meaning intersection of all of them.
+
+    /// tip | Why we don't use "finance hub vs heritage"
+
+    An earlier version of this axis used *"global financial hub"* vs
+    *"ancient heritage city"*. It **looked** sensible, but empirically it
+    pulled tiny offshore-finance capitals (Mbabane, Douglas, Malé) to the
+    top of the "finance" pole — because the model has seen them in
+    offshore-banking news. The *megacity ↔ small town* framing correlates
+    much more strongly with the city's real GaWC rating *and* with
+    population, so it surfaces the pattern we actually want to see.
+
+    ///
     """)
     return
 
@@ -370,24 +382,22 @@ def _(mo):
 @app.cell
 def _(make_axis, model):
     axis1_pos = [
-        "global financial hub",
-        "international banking center",
-        "corporate headquarters",
-        "stock exchange",
-        "skyscrapers",
-        "business district",
+        "megacity",
+        "sprawling metropolis",
+        "dense urban megalopolis",
+        "tens of millions of residents",
+        "global capital of commerce",
     ]
 
     axis1_neg = [
-        "ancient city",
-        "historic old town",
-        "UNESCO world heritage site",
-        "medieval architecture",
-        "ruins and monuments",
-        "cultural heritage",
+        "sleepy village",
+        "tiny hamlet",
+        "rural countryside town",
+        "fishing village",
+        "remote settlement",
     ]
-    axis_business = make_axis(axis1_pos, axis1_neg, model)
-    return (axis_business,)
+    axis_metro = make_axis(axis1_pos, axis1_neg, model)
+    return (axis_metro,)
 
 
 @app.cell(hide_code=True)
@@ -436,8 +446,8 @@ def _(mo):
 
 
 @app.cell
-def _(axis_business, axis_climate, df, model):
-    x = score_words(df["city"].tolist(), axis_business, model)
+def _(axis_climate, axis_metro, df, model):
+    x = score_words(df["city"].tolist(), axis_metro, model)
     y = score_words(df["city"].tolist(), axis_climate, model)
     df_scored = df.assign(x=x, y=y)
     df_scored.head()
@@ -449,10 +459,33 @@ def _(mo):
     mo.md(r"""
     ### Step 2 — Visualize
 
-    Hover for per-city details; drag / scroll to pan and zoom. The
-    dropdown recolors the scatter by a different attribute — a quick
-    way to see whether the semantic axes line up with something you
-    already knew about the cities.
+    The scatter below is an **interactive Altair chart** — hover to see
+    each city's scores, and drag / scroll to pan and zoom.
+
+    A few data-viz principles you should also apply in your own submission:
+
+    - **Colorblind-safe palette** (Okabe–Ito) for the region encoding.
+    - **Axis labels are the pole words**, not `x` / `y`. The reader should
+      be able to interpret the plot without reading extra text.
+    - **Tooltips** let you inspect outliers without cluttering the chart
+      with permanent labels. For a static deliverable, annotate only the
+      most instructive points.
+
+    The dropdown below lets you **recolor the scatter** by a different
+    attribute. Same geometry, different story. The palette is chosen to
+    match the column's type — a rule worth internalizing:
+
+    - `region` — **categorical** → Okabe–Ito qualitative palette.
+    - `business_activity` — **ordinal** GaWC rating (Alpha++ →
+      Sufficiency) → sequential **viridis**, sorted along the rating.
+    - `population` — **quantitative sequential** (log-spaced) →
+      sequential **viridis**.
+    - `latitude` — **quantitative diverging** around the equator →
+      **red–blue** diverging scale with zero at the midpoint.
+
+    Swapping the color encoding is a cheap way to check whether your
+    semantic axes are picking up something that *also* correlates with
+    a non-semantic attribute already in the data.
     """)
     return
 
@@ -461,12 +494,12 @@ def _(mo):
 def _(mo):
     color_by = mo.ui.dropdown(
         options={
-            "region":            "region",
-            "business activity": "business_activity",
-            "population":        "population",
-            "latitude":          "lat",
+            "region (categorical)":         "region",
+            "business_activity (ordinal)":  "business_activity",
+            "population (sequential, log)": "population",
+            "latitude (diverging at 0°)":   "lat",
         },
-        value="region",
+        value="region (categorical)",
         label="Color by: ",
     )
     return (color_by,)
@@ -474,21 +507,33 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(alt, color_by, df_scored, mo):
+    # Okabe–Ito palette — categorical, colorblind-safe.
     REGION_COLORS = {
-        "Africa":   "#009E73",
+        "Africa": "#009E73",
         "Americas": "#0072B2",
-        "Asia":     "#D55E00",
-        "Europe":   "#E69F00",
-        "Oceania":  "#56B4E9",
+        "Asia": "#D55E00",
+        "Europe": "#E69F00",
+        "Oceania": "#56B4E9",
     }
+
+    # GaWC rating ordered from "most globally connected" to "least".
     BUSINESS_ORDER = [
-        "Alpha++", "Alpha+", "Alpha", "Alpha-",
-        "Beta+", "Beta", "Beta-",
-        "Gamma+", "Gamma", "Gamma-",
-        "High Sufficiency", "Sufficiency",
+        "Alpha++",
+        "Alpha+",
+        "Alpha",
+        "Alpha-",
+        "Beta+",
+        "Beta",
+        "Beta-",
+        "Gamma+",
+        "Gamma",
+        "Gamma-",
+        "High Sufficiency",
+        "Sufficiency",
     ]
 
     if color_by.value == "region":
+        # Categorical → qualitative palette.
         _color = alt.Color(
             "region:N",
             scale=alt.Scale(
@@ -498,6 +543,7 @@ def _(alt, color_by, df_scored, mo):
             legend=alt.Legend(title="Region"),
         )
     elif color_by.value == "business_activity":
+        # Ordinal → sequential palette, sorted along the order.
         _color = alt.Color(
             "business_activity:O",
             sort=BUSINESS_ORDER,
@@ -505,12 +551,14 @@ def _(alt, color_by, df_scored, mo):
             legend=alt.Legend(title="GaWC rating"),
         )
     elif color_by.value == "population":
+        # Quantitative, heavy-tailed → log-scaled sequential palette.
         _color = alt.Color(
             "population:Q",
-            scale=alt.Scale(scheme="viridis", type="quantile"),
-            legend=alt.Legend(title="Population (quantile)"),
+            scale=alt.Scale(scheme="viridis", type="log"),
+            legend=alt.Legend(title="Population (log)"),
         )
     else:  # lat
+        # Signed quantitative with meaningful midpoint → diverging palette.
         _color = alt.Color(
             "lat:Q",
             scale=alt.Scale(scheme="redblue", domainMid=0),
@@ -523,7 +571,7 @@ def _(alt, color_by, df_scored, mo):
         .encode(
             x=alt.X(
                 "x:Q",
-                title="← historic / heritage          finance / business hub →",
+                title="← small town / village          megacity / metropolis →",
                 scale=alt.Scale(zero=False, padding=20),
                 axis=alt.Axis(grid=False),
             ),
@@ -541,7 +589,7 @@ def _(alt, color_by, df_scored, mo):
                 alt.Tooltip("business_activity:N", title="GaWC"),
                 alt.Tooltip("population:Q", title="Population", format=","),
                 alt.Tooltip("lat:Q", title="Latitude", format=".2f"),
-                alt.Tooltip("x:Q", title="business-hub score", format=".3f"),
+                alt.Tooltip("x:Q", title="megacity score", format=".3f"),
                 alt.Tooltip("y:Q", title="tropical-warm score", format=".3f"),
             ],
         )
@@ -579,20 +627,26 @@ def _(mo):
 
     **Example observation for the plot above:**
 
-    > The two axes partition the cities into four interpretable quadrants.
-    > New York City, Singapore, Shanghai, London, and Tokyo sit firmly in
-    > the "finance hub" region; Athens, Rome, Prague, Kathmandu, and Havana
-    > anchor the "heritage" side. The climate axis pulls Reykjavik,
-    > Stockholm, Helsinki, and Toronto north-cold, while Bangkok, Mumbai,
-    > Manila, and Singapore go tropical-warm. Notable surprises: Abu Dhabi
-    > and Doha land in the "tropical + finance" quadrant — an unusual
-    > combination, but consistent with how the oil-era Gulf hubs are
-    > portrayed online. Rome and Reykjavik sit in near-opposite corners
-    > despite sharing the same continent, showing that the region color
-    > encoding carries genuinely different information from the two axes.
-    > A third axis could usefully encode *coastal vs inland* geography —
-    > landlocked cities like Kathmandu are currently indistinguishable
-    > from coastal peers with similar economic / climate profiles.
+    > The two axes cut the cities into four readable quadrants. Beijing,
+    > Rio de Janeiro, Shanghai, Paris, Seoul, and Tokyo anchor the
+    > *megacity* pole; tiny island capitals — Bridgetown, Road Town, The
+    > Valley, Flying Fish Cove, St. Peter Port — anchor the *small-town*
+    > pole, and almost all of them carry a "High Sufficiency" GaWC rating,
+    > a nice sanity check that the axis is tracking global-city-ness.
+    > The climate axis is held up by Oslo, Stockholm, Copenhagen, Moscow,
+    > and Kyiv on the cold side and Manila, Panama City, Singapore,
+    > Addis Ababa, and Dhaka on the tropical side. Notable **surprises**:
+    > Hamilton (Bermuda, subtropical) lands in the "cold" half — almost
+    > certainly because the model is confusing it with Hamilton, Ontario;
+    > this is a live example of name-collision noise that bare-city
+    > embeddings are prone to. Kathmandu also lands cold, which is
+    > actually geographically plausible once you remember it sits at 1,400 m
+    > in the Himalayas. Doha and Abu Dhabi sit in the *megacity + tropical*
+    > quadrant, consistent with how oil-era Gulf hubs are written about.
+    > What the axes **miss**: coastal-vs-inland geography, political
+    > capital status, and age of the city — Rome (ancient, mid-size) and
+    > Washington, D.C. (young, planned capital) end up in nearby places
+    > despite being almost opposites on those unseen dimensions.
 
     ---
 
