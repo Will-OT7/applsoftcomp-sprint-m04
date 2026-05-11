@@ -36,10 +36,9 @@ def _(mo):
 
 
 @app.cell
-def _(SentenceTransformer):
+def _():
     model = SentenceTransformer("all-mpnet-base-v2")
-    model
-    return (model,)
+    return model
 
 
 @app.cell(hide_code=True)
