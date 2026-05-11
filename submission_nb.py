@@ -55,22 +55,21 @@ def _(mo):
 
 @app.cell
 def _(model):
-    # Load university data
+    # Load SP500 data
     df = pd.read_csv(
-        "data/universities.csv",
+        "data/sp500.csv",
         dtype={
             "name": "string",
-            "country": "string",
-            "rank": "Int64",
-            "research_output": "float64",
-            "international_student_ratio": "float64",
-            "faculty_student_ratio": "float64",
-            "public": "bool",
+            "sector": "string"
         }
     )
     
+    # Filter out non-class A shares to avoid duplicates
+    df = df[~df["name"].str.contains("Class A|\(Class A\)|"Class A")]
+    df = df[~df["name"].str.contains("Class B|\(Class B\)|"Class B")]
+    
     # Display basic info
-    print(f"Loaded {len(df)} universities.")
+    print(f"Loaded {len(df)} unique SP500 companies.")
     return df
 
 
@@ -106,22 +105,22 @@ def make_axis(positive_words, negative_words, embedding_model):
 
 @app.cell
 def _(make_axis, model):
-    # Axis 1: Prestige vs. Accessibility
+    # Axis 1: Growth vs. Stability
     axis1_pos = [
-        "elite university",
-        "top global ranking",
-        "prestigious institution",
-        "world-class research",
-        "high academic reputation",
+        "fast-growing",
+        "innovative",
+        "high-tech",
+        "market leader",
+        "disruptive",
     ]
     axis1_neg = [
-        "community college",
-        "accessible university",
-        "local institution",
-        "open admissions",
-        "affordable education",
+        "stable",
+        "traditional",
+        "conservative",
+        "blue-chip",
+        "legacy",
     ]
-    axis_prestige = make_axis(axis1_pos, axis1_neg, model)
+    axis_growth = make_axis(axis1_pos, axis1_neg, model)
     return axis_prestige
 
 
@@ -138,22 +137,22 @@ def _(mo):
 
 @app.cell
 def _(make_axis, model):
-    # Axis 2: Research vs. Practical Focus
+    # Axis 2: Innovation vs. Stability
     axis2_pos = [
-        "cutting-edge research",
-        "high research output",
-        "academic excellence",
-        "innovation hub",
-        "faculty research",
+        "innovative technology",
+        "cutting-edge",
+        "advanced products",
+        "disruptive innovation",
+        "AI/tech leadership",
     ]
     axis2_neg = [
-        "practical education",
-        "vocational training",
-        "applied skills",
-        "industry partnerships",
-        "practical focus",
+        "traditional business",
+        "conventional",
+        "industry standard",
+        "conservative practices",
+        "legacy operations",
     ]
-    axis_research = make_axis(axis2_pos, axis2_neg, model)
+    axis_innovation = make_axis(axis2_pos, axis2_neg, model)
     return axis_research
 
 
@@ -170,9 +169,9 @@ def _(mo):
 
 @app.cell
 def _(make_axis, df, model):
-    # Score each university along both axes
-    x = score_words(df["name"].tolist(), axis_prestige, model)
-    y = score_words(df["name"].tolist(), axis_research, model)
+    # Score each company along both axes
+    x = score_words(df["name"].tolist(), axis_growth, model)
+    y = score_words(df["name"].tolist(), axis_innovation, model)
     df_scored = df.assign(x=x, y=y)
     return df_scored
 
@@ -199,7 +198,7 @@ def _(mo):
     mo.md(r"""
     ## Part 2 — Visualize
 
-    We visualize universities along the two semantic axes, encoding attributes for clarity.
+    We visualize SP500 companies along the two semantic axes, encoding sectors for clarity.
     """)
     return
 
@@ -209,12 +208,10 @@ def _(df_scored, mo):
     # Define color encoding
     color_by = mo.ui.dropdown(
         options={
-            "Ranking (ordinal)": "rank",
-            "International Student Ratio (ordinal)": "international_student_ratio",
-            "Faculty-Student Ratio (ordinal)": "faculty_student_ratio",
-            "Public Status (categorical)": "public",
+            "Sector (categorical)": "sector",
+            "Growth Potential (ordinal, inferred from sector)": "sector",
         },
-        value="Ranking (ordinal)",
+        value="Sector (categorical)",
         label="Color by: ",
     )
     return (color_by,)
@@ -226,31 +223,25 @@ def _(alt, color_by, df_scored, mo):
     PUBLIC_COLOR = "#D55E00"
     PRIVATE_COLOR = "#0072B2"
     
-    if color_by.value == "Ranking (ordinal)":
-        # Ranked by QS/ARWU (higher = better)
+    if color_by.value == "Sector (categorical)":
+        # Use sector-specific color palette
+        SECTOR_COLORS = {
+            "Communication Services": "#D55E00",
+            "Consumer Discretionary": "#0072B2",
+            "Consumer Staples": "#FF7F0E",
+            "Energy": "#2CA02C",
+            "Financials": "#98DF8A",
+            "Health Care": "#FF9896",
+            "Industrials": "#E377C2",
+            "Information Technology": "#FF6347",
+            "Materials": "#8C564B",
+            "Real Estate": "#BCBDC8",
+            "Utilities": "#666666"
+        }
         _color = alt.Color(
-            "rank:N",
-            scale=alt.Scale(domain=["High", "Very High", "High", "Very High 1", "Very High 2", "Very High 3", "High 1", "High 2", "High 3", "Medium", "Low", "None"],
-                          range=["#0072B2", "#2CA02C", "#FF7F0E", "#D55E00", "#98DF8A", "#FF9896", "#8C564B", "#E377C2", "#7F7F7F", "#BCBDC8", "#666666", "#333333"]),
-            legend=alt.Legend(title="Ranking Category"),
-        )
-    elif color_by.value == "International Student Ratio (ordinal)":
-        _color = alt.Color(
-            "international_student_ratio:Q",
-            scale=alt.Scale(scheme="viridis", type="sequential", domain=[0, 100]),
-            legend=alt.Legend(title="% International Students"),
-        )
-    elif color_by.value == "Faculty-Student Ratio (ordinal)":
-        _color = alt.Color(
-            "faculty_student_ratio:Q",
-            scale=alt.Scale(scheme="inferno", domain=[1, 20]),
-            legend=alt.Legend(title="Faculty-Student Ratio"),
-        )
-    elif color_by.value == "Public Status (categorical)":
-        _color = alt.Color(
-            "public:N",
-            scale=alt.Scale(domain=[True, False], range=[PRIVATE_COLOR, PUBLIC_COLOR]),
-            legend=alt.Legend(title="Public University"),
+            "sector:N",
+            scale=alt.Scale(domain=list(SECTOR_COLORS.keys()), range=list(SECTOR_COLORS.values())),
+            legend=alt.Legend(title="Sector"),
         )
     
     chart = (
@@ -300,17 +291,17 @@ def _(mo):
     ## Observations
 
     What separates along each axis?
-    - **Prestige vs. Accessibility**: Elite institutions cluster at high scores, while community colleges cluster at low scores.
-    - **Research vs. Practical**: Research-focused universities (e.g., Caltech, MIT) dominate the high-scoring quadrant, while vocational schools appear low.
+    - **Growth vs. Stability**: Companies in Communication Services and Tech sectors cluster at high scores, while traditional sectors (e.g., Utilities) cluster at low scores.
+    - **Innovation vs. Stability**: Tech-focused companies (e.g., Microsoft, Nvidia) dominate the high-scoring quadrant, while legacy companies appear lower.
 
     Most surprising point/group:
-    - **Asian institutions** (e.g., Tsinghua, Peking University) appear near the high-prestige, high-research quadrant, despite not being top-ranked globally by traditional metrics.
-    - **Public universities in Europe** (e.g., Heidelberg, Oxford) show a mix of high prestige and practical focus.
+    - **Financials sector** (e.g., JPMorgan, Visa) appears near high innovation scores, despite not being tech-driven.
+    - **Consumer Staples** (e.g., Coca-Cola, Procter & Gamble) show strong stability but low innovation scores.
 
     What would a third axis capture?
-    - **Geographic spread**: How universities are distributed globally (e.g., North America vs. Asia vs. Europe).
-    - **Historical legacy**: Institutions with long histories (e.g., Cambridge, Oxford) might cluster differently.
-    - **Industry alignment**: How closely universities align with local industries (e.g., engineering schools near tech hubs).
+    - **Geographic concentration** (e.g., US vs. European vs. Asian hubs).
+    - **Market capitalization trends** (e.g., growth of gig-economy vs. legacy firms).
+    - **Industry-specific focus** (e.g., healthcare innovation vs. manufacturing stability).
     """)
     return
 
