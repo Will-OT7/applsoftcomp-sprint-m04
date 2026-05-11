@@ -16,8 +16,7 @@
 
 import marimo
 
-
-__generated_with = "0.23.1"
+__generated_with = "0.23.5"
 app = marimo.App(width="medium")
 
 
@@ -109,32 +108,35 @@ def _(np):
     return (make_axis,)
 
 
-@app.cell
-def _():
-    def score_words(words, axis, embedding_model):
-        """Project each word onto the axis."""
-        emb = embedding_model.encode(list(words), normalize_embeddings=True)
-        return emb @ axis
-
-    return (score_words,)
+@app.function
+def score_words(words, axis, embedding_model):
+    """Project each word onto the axis."""
+    emb = embedding_model.encode(list(words), normalize_embeddings=True)
+    return emb @ axis
 
 
 @app.cell
 def _(make_axis, model):
-    # Axis 1: Growth vs. Stability
+    # Axis 1: Defensive vs. Cyclical 
     axis1_pos = [
-        "fast-growing",
-        "innovative",
-        "high-tech",
-        "market leader",
-        "disruptive",
+        "recession-resistant",
+        "essential",
+        "healthcare",
+        "staple-oriented",
+        "utility-like",
+        "resilient",
+        "low-volatility",
+        "income-generating",
     ]
     axis1_neg = [
-        "stable",
-        "traditional",
-        "conservative",
-        "blue-chip",
-        "legacy",
+        "discretionary",
+        "expansion-sensitive",
+        "housing-linked",
+        "growth-dependent",
+        "volatile",
+        "leveraged",
+        "commodity-exposed",
+        "travel-related",
     ]
     axis_growth = make_axis(axis1_pos, axis1_neg, model)
     return (axis_growth,)
@@ -143,10 +145,10 @@ def _(make_axis, model):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    #### Axis 1 — Stability vs. Growth
+    #### Axis 1 — Resilience vs. Volatility
 
-    **Growth / disruption (+)** vs. **stable / legacy (−)**
-    This axis should pull companies with technology, platform, or expansion-oriented associations away from older, steadier business language.
+    **Economically Resilient (+)** vs. **Cyclical / Volatile (−)**
+    This axis should pull companies with names that evoke stability, essential services, or defensive sectors (e.g., utilities, consumer staples) toward the positive side, while companies with names that evoke growth, expansion, or cyclical industries (e.g., consumer discretionary, materials) should lean negative.
     """)
     return
 
@@ -184,7 +186,7 @@ def _(mo):
 
 
 @app.cell
-def _(axis_digital, axis_growth, df, model, score_words):
+def _(axis_digital, axis_growth, df, model):
     # Score each company along both axes
     x = score_words(df["name"].tolist(), axis_growth, model)
     y = score_words(df["name"].tolist(), axis_digital, model)
@@ -210,7 +212,7 @@ def _(mo):
         options={
             "Sector (categorical)": "sector",
         },
-        value="sector",
+        value="Sector (categorical)",
         label="Color by: ",
     )
     return (color_by,)
@@ -218,7 +220,7 @@ def _(mo):
 
 @app.cell
 def _(alt, color_by, df_scored, mo):
-    # Okabe-Ito-inspired categorical palette, extended for the 11 sectors.
+    # Okabe–Ito palette — categorical, colorblind-safe.
     SECTOR_COLORS = {
         "Communication Services": "#0072B2",
         "Consumer Discretionary": "#D55E00",
@@ -248,7 +250,7 @@ def _(alt, color_by, df_scored, mo):
         .encode(
             x=alt.X(
                 "x:Q",
-                title="stable / legacy ←     → growth / disruption",
+                title="Resilient ←     → Volatile",
                 scale=alt.Scale(zero=False, padding=20),
                 axis=alt.Axis(grid=False),
             ),
@@ -276,7 +278,7 @@ def _(alt, color_by, df_scored, mo):
         .configure_legend(labelFontSize=11, titleFontSize=12)
         .interactive()
     )
-    
+
     mo.vstack([color_by, chart])
     return
 
