@@ -14,6 +14,8 @@
 # ]
 # ///
 
+import os
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
 import marimo as mo
 import numpy as np
 import pandas as pd
@@ -37,7 +39,7 @@ def _(mo):
 
 @app.cell
 def _():
-    model = SentenceTransformer("all-mpnet-base-v2")
+    model = SentenceTransformer("all-mpnet-base-v2", device="cpu")
     return model
 
 
