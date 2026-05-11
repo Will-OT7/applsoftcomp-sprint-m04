@@ -14,13 +14,12 @@
 # ]
 # ///
 
-import os
-os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
 import marimo as mo
+from sentence_transformers import SentenceTransformer
 import numpy as np
 import pandas as pd
 import altair as alt
-from sentence_transformers import SentenceTransformer
+
 
 __generated_with = "0.23.1"
 app = mo.App(width="medium")
