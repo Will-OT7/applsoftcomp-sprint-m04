@@ -14,14 +14,14 @@
 # ]
 # ///
 
-import marimo
+import marimo as mo
 import numpy as np
 import pandas as pd
 import altair as alt
 from sentence_transformers import SentenceTransformer
 
 __generated_with = "0.23.1"
-app = marimo.App(width="medium")
+app = mo.App(width="medium")
 
 
 @app.cell(hide_code=True)
