@@ -10,7 +10,8 @@
 #     "ipython>=8.0",
 #     "anywidget>=0.9",
 #     "seaborn==0.13.2",
-#     "altair==6.0.0"
+#     "altair==6.0.0",
+#     "vl-conver-python==0.6.0",
 # ]
 # ///
 
@@ -279,6 +280,10 @@ def _(alt, color_by, df_scored, mo):
         .interactive()
     )
 
+    # Export to PNG
+    os.makedirs('figs', exist_ok=True)
+    chart.save('figs/scatterplot.png')
+
     mo.vstack([color_by, chart])
     return
 
@@ -319,8 +324,9 @@ def _():
     import numpy as np
     import pandas as pd
     import altair as alt
+    import os
 
-    return SentenceTransformer, alt, mo, np, pd
+    return SentenceTransformer, alt, mo, np, pd, os
 
 
 if __name__ == "__main__":
