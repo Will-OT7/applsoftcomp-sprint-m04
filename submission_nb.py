@@ -11,7 +11,7 @@
 #     "anywidget>=0.9",
 #     "seaborn==0.13.2",
 #     "altair==6.0.0",
-#     "vl-conver-python==0.6.0",
+#     "vl-convert-python==1.9.0.post1",
 # ]
 # ///
 
@@ -220,7 +220,7 @@ def _(mo):
 
 
 @app.cell
-def _(alt, color_by, df_scored, mo):
+def _(alt, color_by, df_scored, mo, os):
     # Okabe–Ito palette — categorical, colorblind-safe.
     SECTOR_COLORS = {
         "Communication Services": "#0072B2",
@@ -326,7 +326,7 @@ def _():
     import altair as alt
     import os
 
-    return SentenceTransformer, alt, mo, np, pd, os
+    return SentenceTransformer, alt, mo, np, os, pd
 
 
 if __name__ == "__main__":
